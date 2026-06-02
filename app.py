@@ -3,156 +3,98 @@ from flask_cors import CORS
 import joblib
 import re
 
-# Initialize Flask app
-
 app = Flask(__name__)
 CORS(app)
 
-# Load trained model
-
 rf_model = joblib.load("rf_model.pkl")
-
-# Load vectorizer
-
 vectorizer = joblib.load("vectorizer.pkl")
 
-print("Model Loaded Successfully")
 
-@app.route('/')
+@app.route("/")
 def home():
-return "AI Phishing Threat Intelligence Backend Running"
+    return "AI Phishing Threat Intelligence Backend Running"
+
 
 def detect_patterns(email_text):
-patterns = []
 
-```
-text = email_text.lower()
+    patterns = []
 
-urgency_words = [
-    "urgent",
-    "immediately",
-    "verify now",
-    "act now",
-    "suspended",
-    "limited time",
-    "expired",
-    "warning"
-]
+    text = email_text.lower()
 
-credential_words = [
-    "password",
-    "login",
-    "signin",
-    "verify account",
-    "confirm account",
-    "update account"
-]
+    if "urgent" in text:
+        patterns.append("Urgency Language")
 
-financial_words = [
-    "bank",
-    "payment",
-    "credit card",
-    "transaction",
-    "invoice",
-    "wire transfer"
-]
+    if "password" in text or "login" in text:
+        patterns.append("Credential Request")
 
-if any(word in text for word in urgency_words):
-    patterns.append("Urgency Language")
+    if "http://" in text or "https://" in text:
+        patterns.append("Suspicious URL")
 
-if any(word in text for word in credential_words):
-    patterns.append("Credential Request")
+    if "click here" in text:
+        patterns.append("Call-To-Action Link")
 
-if any(word in text for word in financial_words):
-    patterns.append("Financial Scam Indicators")
+    if len(patterns) == 0:
+        patterns.append("No Major Indicators Detected")
 
-if re.search(r"http[s]?://", text):
-    patterns.append("Suspicious URL")
+    return patterns
 
-if "click here" in text:
-    patterns.append("Call-To-Action Link")
-
-if len(patterns) == 0:
-    patterns.append("No Major Indicators Detected")
-
-return patterns
-```
 
 def get_risk_level(confidence, prediction):
 
-```
-if prediction == "Legitimate Email":
-    return "Safe"
+    if prediction == "Legitimate Email":
+        return "Safe"
 
-if confidence >= 95:
-    return "Critical"
-elif confidence >= 85:
-    return "High"
-elif confidence >= 70:
-    return "Medium"
-else:
+    if confidence >= 95:
+        return "Critical"
+
+    if confidence >= 85:
+        return "High"
+
+    if confidence >= 70:
+        return "Medium"
+
     return "Low"
-```
 
-def generate_explanation(prediction, patterns):
 
-```
-if prediction == "Legitimate Email":
-    return (
-        "The email does not contain strong phishing indicators and "
-        "appears to be legitimate based on machine learning analysis."
-    )
-
-return (
-    "The email contains phishing-related characteristics such as "
-    + ", ".join(patterns)
-    + ". These indicators are commonly associated with phishing attacks."
-)
-```
-
-@app.route('/predict', methods=['POST'])
+@app.route("/predict", methods=["POST"])
 def predict():
 
-```
-try:
+    try:
 
-    data = request.get_json()
+        data = request.get_json()
 
-    email_text = data["email"]
+        email_text = data["email"]
 
-    transformed_text = vectorizer.transform([email_text])
+        transformed_text = vectorizer.transform([email_text])
 
-    prediction = rf_model.predict(transformed_text)[0]
+        prediction = rf_model.predict(transformed_text)[0]
 
-    probability = rf_model.predict_proba(transformed_text)[0]
+        probability = rf_model.predict_proba(transformed_text)[0]
 
-    if prediction == 1:
-        result = "Phishing Email"
-        confidence = round(probability[1] * 100, 2)
-    else:
-        result = "Legitimate Email"
-        confidence = round(probability[0] * 100, 2)
+        if prediction == 1:
+            result = "Phishing Email"
+            confidence = round(probability[1] * 100, 2)
+        else:
+            result = "Legitimate Email"
+            confidence = round(probability[0] * 100, 2)
 
-    patterns = detect_patterns(email_text)
+        patterns = detect_patterns(email_text)
 
-    risk_level = get_risk_level(confidence, result)
+        risk_level = get_risk_level(confidence, result)
 
-    explanation = generate_explanation(result, patterns)
+        return jsonify({
+            "prediction": result,
+            "confidence": confidence,
+            "risk_level": risk_level,
+            "detected_patterns": patterns
+        })
 
-    return jsonify({
-        "prediction": result,
-        "confidence": confidence,
-        "risk_level": risk_level,
-        "detected_patterns": patterns,
-        "explanation": explanation
-    })
+    except Exception as e:
 
-except Exception as e:
+        return jsonify({
+            "error": str(e)
+        }), 500
 
-    return jsonify({
-        "error": str(e)
-    }), 500
-```
 
 if __name__ == "__main__":
-app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=10000)
