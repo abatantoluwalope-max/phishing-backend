@@ -5,7 +5,7 @@ import re
 
 # Initialize Flask app
 
-app = Flask(**name**)
+app = Flask(__name__)
 CORS(app)
 
 # Load trained model
@@ -23,10 +23,9 @@ def home():
 return "AI Phishing Threat Intelligence Backend Running"
 
 def detect_patterns(email_text):
-
-```
 patterns = []
 
+```
 text = email_text.lower()
 
 urgency_words = [
@@ -87,24 +86,21 @@ if prediction == "Legitimate Email":
 
 if confidence >= 95:
     return "Critical"
-
 elif confidence >= 85:
     return "High"
-
 elif confidence >= 70:
     return "Medium"
-
-return "Low"
+else:
+    return "Low"
 ```
 
 def generate_explanation(prediction, patterns):
 
 ```
 if prediction == "Legitimate Email":
-
     return (
-        "The email does not contain strong phishing indicators "
-        "and appears to be legitimate based on the machine learning analysis."
+        "The email does not contain strong phishing indicators and "
+        "appears to be legitimate based on machine learning analysis."
     )
 
 return (
@@ -122,7 +118,7 @@ try:
 
     data = request.get_json()
 
-    email_text = data['email']
+    email_text = data["email"]
 
     transformed_text = vectorizer.transform([email_text])
 
@@ -131,12 +127,9 @@ try:
     probability = rf_model.predict_proba(transformed_text)[0]
 
     if prediction == 1:
-
         result = "Phishing Email"
         confidence = round(probability[1] * 100, 2)
-
     else:
-
         result = "Legitimate Email"
         confidence = round(probability[0] * 100, 2)
 
@@ -158,8 +151,8 @@ except Exception as e:
 
     return jsonify({
         "error": str(e)
-    })
+    }), 500
 ```
 
-if **name** == "**main**":
+if __name__ == "__main__":
 app.run(host="0.0.0.0", port=10000)
